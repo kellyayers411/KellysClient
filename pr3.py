@@ -120,8 +120,8 @@ class Memory(LoggingMixIn, Operations):
 
     def getNumBlocksToTransfer(self, fileSize):
         fileSiz=int(fileSize)
-        numBlocksToTransfer=fileSiz/1024
-        if fileSiz%1024:
+        numBlocksToTransfer=fileSiz/100
+        if fileSiz%100:
             numBlocksToTransfer+=1
             return numBlocksToTransfer
         else:
@@ -242,8 +242,10 @@ class Memory(LoggingMixIn, Operations):
 
    
 
-    def sendDataToServer(self, path, Data, fileSize):
+    def sendDataToServer(self, path, Data, fileSize, out):
         print 'inside sendDataToServer method now:' 
+        print type(path)
+        
         print 'Passed in file size=', fileSize
         numBlocksToTransfer=self.getNumBlocksToTransfer(fileSize)
         print 'i got numBlocksToTransfer=', numBlocksToTransfer
@@ -271,25 +273,28 @@ class Memory(LoggingMixIn, Operations):
             
             else:
                 print 'file is over 1k'
-                chunk_size = 1024
-                file_object = open(path, 'r')
-                while True:
-                    print 'im in the while loop'
-                    data = file_object.read(chunk_size)
-                    Data[path] = Data[path] + data
-                    p=pickle.dumps(Data)
+                i='1'
+                for d in range(0,n):
+                    print 'im in the for loop to send data'
                     newpath=path+i
+                    print 'newpath=', newpath
                     node_id = self.getRandomNode(newpath)
-                    if not data:
-                        break
-                        print 'i broke out'
-                    else:
-                        server.put(node_id, Binary("data"), Binary(p), 3000)
-                        print 'i sent a block of data'
-                        print 'i=', i
-                        i+=1
-                        print 'i=', i
-                file_object.close()
+                    print type(path)
+                    print 'path=', path
+                    #print type(data)
+                    
+                    #print 'Data[path]', Data[path]
+                    Fata=out[100*n:100*n+100]
+                    print 'Fata =', Fata
+                    temp_dict = defaultdict(str)
+                    temp_dict[newpath] = Fata
+                    p=pickle.dumps(temp_dict)
+                    server.put(node_id, Binary("data"), Binary(p), 3000)
+                    print 'i sent a block of data'
+                    int_i = int(i)  #str to int, increment, then back
+                    int_i = int_i + 1       #for concat w/pathname
+                    i = str(int_i)
+                
                 print 'i closed the file and finished sending a large file'
 
              
@@ -338,8 +343,37 @@ class Memory(LoggingMixIn, Operations):
             
             else:
                 print 'this file is over 1k'  
-                print 'you need to finish coding'            
-
+                i='1'
+                newpath=path+i
+                print 'newpath=', newpath
+                node_id = self.getRandomNode(newpath)
+                rv=server.get(node_id, Binary("data"))
+                data_str = rv["value"].data
+                myData = pickle.loads(data_str) #unpickle
+                #print 'Data[path]', Data[path]
+                data = myData[newpath]
+                newdata = data
+                for d in range(1,n):
+                    print 'im in the for loop to get data back'
+                    newpath=path+i
+                    print 'newpath=', newpath
+                    node_id = self.getRandomNode(newpath)
+                    
+                    rv=server.get(node_id, Binary("data"))
+                    data_str = rv["value"].data
+                    myData = pickle.loads(data_str) #unpickle
+                    #print 'Data[path]', Data[path]
+                    data = myData[newpath]
+                    newdata = newdata + data
+                    
+                    print 'i put a block of data into newdata'
+                    int_i = int(i)  #str to int, increment, then back
+                    int_i = int_i + 1       #for concat w/pathname
+                    i = str(int_i)            
+                myData=newdata
+                temp_dict = defaultdict(str)
+                temp_dict[path] = myData
+                return temp_dict
 
     def setxattr(self, path, name, value, options, position=0):
         # Ignore options
@@ -435,6 +469,7 @@ class Memory(LoggingMixIn, Operations):
     def write(self, path, data, offset, fh):
         print 'starting write'
         print 'path=', path
+        print type(path)
         print 'data to write=', data
         node_id = self.getRandomNode(path)  #figure out node id which represents a server and is particular to a path
         print 'node_id in write function =', node_id #may not need this
@@ -446,10 +481,11 @@ class Memory(LoggingMixIn, Operations):
         if not Data: #data is empty if the dictionary brought back was just the initializer in other words if this is a new file path
             print 'Data was empty'
             Data[path] = Data[path][:offset] + data
+
             print 'data=', data
             print 'Data=', Data
             print 'Data[path]=', Data[path]
-            
+            out=Data[path]
             #get metadata
             rv=server.get('1', Binary("files")) #metadata is definitely there because it was initialized in init method
             data_str = rv["value"].data
@@ -465,7 +501,7 @@ class Memory(LoggingMixIn, Operations):
            
             Data[path] = Data[path][:offset] + data #concatinate data
             print 'Data[path]=', Data[path]
-                    
+            out=Data[path]
             #get metadata
             rv=server.get('1', Binary("files")) #metadata is definitely there because it was initialized in init method
             data_str = rv["value"].data
@@ -477,7 +513,7 @@ class Memory(LoggingMixIn, Operations):
             
         #set
         pickledData=pickle.dumps(Data) #pickle new data
-        self.sendDataToServer(path, pickledData, a) #send back special this may be over 1k
+        self.sendDataToServer(path, pickledData, a, out) #send back special this may be over 1k
         #endSet
             
         #set
