@@ -176,7 +176,8 @@ class Memory(LoggingMixIn, Operations):
     #data function needs to go in here
     def read(self, path, size, offset, fh):
         print 'im inside read'
-        myData = self.retreiveDataFromServer(path)
+        node_id = self.getRandomNode(path)
+        myData = self.retreiveDataFromServer(path, node_id)
         print 'myData=', myData
         print type(myData)
         return myData[path][offset:offset + size]
@@ -250,7 +251,7 @@ class Memory(LoggingMixIn, Operations):
         node_id = self.getRandomNode(path)
         print node_id
         if n == 0: #when n is 0 tht means there is no file
-            print "inside send Data when n=1"
+            print "inside send Data when n=0"
             print 'beginning send Data when there was no dictionary'
             #set
             p=pickle.dumps(Data)
@@ -265,19 +266,33 @@ class Memory(LoggingMixIn, Operations):
         else:
             if n==1:
                 print "inside send Data when n=1"
-                p=pickle.dumps(Data)
-                server.put(node_id, Binary("data"), Binary(p), 3000)
-            # i='1' #string that will be concatenated with new path names
-            # d=0 #counter
-            # for d in range(0,n): #loop to come up with new path names for each chunk that needs to be sent
+                
+                server.put(node_id, Binary("data"), Binary(Data), 3000)
+            
+            else:
+                print 'file is over 1k'
+                chunk_size = 1024
+                file_object = open(path, 'r')
+                while True:
+                    data = file_object.read(chunk_size)
+                    p=pickle.dumps(data)
+                    newpath=path+i
+                    node_id = self.getRandomNode(newpath)
+                    if not data:
+                        break
+                    else:
+                    server.put(node_id, Binary("data"), Binary(p), 3000)
+                    i+=1
+                file_object.close()
+
+             #    i='1' #string that will be concatenated with new path names
+             #    d=0 #counter
+             # for d in range(0,n): #loop to come up with new path names for each chunk that needs to be sent
             #             print 'in for loop(get), d = ', d
             # newpath = path + i
             # node_id = self.getRandomNode(newpath)
             # rv = server.get(node_id, Binary('data'))
             # data_str = rv['value'].data
-            else:
-                print 'file is over 1k'
-
             # returned_dict = pickle.loads(e)
             # value_field = returned_dict[newpath]
             #             data_dump = data_dump + value_field[:]
@@ -285,9 +300,8 @@ class Memory(LoggingMixIn, Operations):
             # int_i = int_i + 1   #for concat w/pathname
             # i = str(int_i)
 
-    def retreiveDataFromServer(self, path):
+    def retreiveDataFromServer(self, path, node_id):
         print 'i am inside retrieve'
-        node_id = self.getRandomNode(path)
         rv=server.get(node_id, Binary("data"))
         if not rv:
             print 'rv was zero so there was no file', rv
@@ -306,7 +320,7 @@ class Memory(LoggingMixIn, Operations):
             print 'brought back the initial dic and depickled it'
             #endGet
             print 'data from empty dictionary=', myData #Data is empty here
-            print 'finished retrieve Data when there was no dictionary'
+            print 'Successfullly retrieved Data when there was no dictionary'
             print 'myData1=', myData
             print type(myData)
             return myData
@@ -319,10 +333,12 @@ class Memory(LoggingMixIn, Operations):
             if n == 1: #if there is only 1 block to transfer
             #get
                 data_str = rv["value"].data
+                print 'data_str=', data_str
+                print type(data_str)
                 myData = pickle.loads(data_str) #unpickle
             #endGet
                 print 'finished retreive data when a dictionary was present'
-                print 'myData2=', myData
+                print 'myData2=', myData[path]
                 print type(myData)
                 return myData
             
@@ -428,7 +444,7 @@ class Memory(LoggingMixIn, Operations):
         print 'data to write=', data
         node_id = self.getRandomNode(path)  #figure out node id which represents a server and is particular to a path
         print 'node_id in write function =', node_id #may not need this
-        Data = self.retreiveDataFromServer(path) #retrieve any data that may already be saved with this path
+        Data = self.retreiveDataFromServer(path, node_id) #retrieve any data that may already be saved with this path
         print 'i am back from retreiveDataFromServer method'
         #after retrieve some type of dictionary is present either empty or not
         print 'the Data= ', Data
@@ -449,7 +465,7 @@ class Memory(LoggingMixIn, Operations):
             myFiles[path]['st_size'] = len(Data[path]) #update size of file
             a=myFiles[path]['st_size']#fileSize
             print 'a=', a
-            print 'i finished if data was empty'
+            print 'i finished if data was empty new data is stored locally'
         
         else:  #data was present  
            
