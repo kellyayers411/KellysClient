@@ -274,31 +274,25 @@ class Memory(LoggingMixIn, Operations):
                 chunk_size = 1024
                 file_object = open(path, 'r')
                 while True:
+                    print 'im in the while loop'
                     data = file_object.read(chunk_size)
-                    p=pickle.dumps(data)
+                    Data[path] = Data[path] + data
+                    p=pickle.dumps(Data)
                     newpath=path+i
                     node_id = self.getRandomNode(newpath)
                     if not data:
                         break
+                        print 'i broke out'
                     else:
-                    server.put(node_id, Binary("data"), Binary(p), 3000)
-                    i+=1
+                        server.put(node_id, Binary("data"), Binary(p), 3000)
+                        print 'i sent a block of data'
+                        print 'i=', i
+                        i+=1
+                        print 'i=', i
                 file_object.close()
+                print 'i closed the file and finished sending a large file'
 
-             #    i='1' #string that will be concatenated with new path names
-             #    d=0 #counter
-             # for d in range(0,n): #loop to come up with new path names for each chunk that needs to be sent
-            #             print 'in for loop(get), d = ', d
-            # newpath = path + i
-            # node_id = self.getRandomNode(newpath)
-            # rv = server.get(node_id, Binary('data'))
-            # data_str = rv['value'].data
-            # returned_dict = pickle.loads(e)
-            # value_field = returned_dict[newpath]
-            #             data_dump = data_dump + value_field[:]
-            # int_i = int(i)  #str to int, increment, then back
-            # int_i = int_i + 1   #for concat w/pathname
-            # i = str(int_i)
+             
 
     def retreiveDataFromServer(self, path, node_id):
         print 'i am inside retrieve'
