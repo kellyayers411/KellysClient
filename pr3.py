@@ -42,10 +42,10 @@ class Memory(LoggingMixIn, Operations):
     def getRandomNode(self, path):   #hash function to return a random node id
         m = md5(path)
         m_hex = m.hexdigest()
-    	x = int(m_hex,16)
-    	x = str(x)	 
-        #x = x[0:32]   	 
-        return x	
+        x = int(m_hex,16)
+        x = str(x) 
+        #x = x[0:32]   
+        return x
         
     def chmod(self, path, mode):
         #self.files[path]['st_mode'] &= 0770000
@@ -159,10 +159,10 @@ class Memory(LoggingMixIn, Operations):
         #set
         p=pickle.dumps(myFiles)
         server.put('1', Binary("files"), Binary(p), 3000)
-        #endSet   	
+        #endSet   
 
     def open(self, path, flags):
-    	#get
+        #get
         rv=server.get('1', Binary("fd"))
         data_str = rv['value'].data
         myFd = pickle.loads(data_str)
@@ -178,6 +178,7 @@ class Memory(LoggingMixIn, Operations):
         print 'im inside read'
         myData = self.retreiveDataFromServer(path)
         print 'myData=', myData
+        print type(myData)
         return myData[path][offset:offset + size]
 
     def readdir(self, path, fh):
@@ -189,7 +190,7 @@ class Memory(LoggingMixIn, Operations):
         return ['.', '..'] + [x[1:] for x in myFiles if x != '/']
     #data function needs to go in here
     def readlink(self, path):
-    	node_id = self.getRandomNode(path)
+        node_id = self.getRandomNode(path)
         #get
         rv=server.get(node_id, Binary("data"))
         data_str = rv['value'].data
@@ -240,18 +241,18 @@ class Memory(LoggingMixIn, Operations):
 
    
 
-    def sendDataToServer(self, path, value, Data, ttl):
-        print 'inside sendDataToServer method now:'
-        fileSize=self.getSizeofFile(path)   
-        print 'i just got a file size=', fileSize
+    def sendDataToServer(self, path, Data, fileSize):
+        print 'inside sendDataToServer method now:' 
+        print 'Passed in file size=', fileSize
         numBlocksToTransfer=self.getNumBlocksToTransfer(fileSize)
         print 'i got numBlocksToTransfer=', numBlocksToTransfer
         n=numBlocksToTransfer
+        node_id = self.getRandomNode(path)
+        print node_id
         if n == 0: #when n is 0 tht means there is no file
+            print "inside send Data when n=1"
             print 'beginning send Data when there was no dictionary'
-            node_id = self.getRandomNode(path)
-            print 'i got a node id = ', node_id
-             #set
+            #set
             p=pickle.dumps(Data)
             server.put(node_id, Binary("data"), Binary(p), 3000)
             #endSet
@@ -263,7 +264,9 @@ class Memory(LoggingMixIn, Operations):
             print 'in english what i sent was = ', this
         else:
             if n==1:
-        	    print "need to code this loop"
+                print "inside send Data when n=1"
+                p=pickle.dumps(Data)
+                server.put(node_id, Binary("data"), Binary(p), 3000)
             # i='1' #string that will be concatenated with new path names
             # d=0 #counter
             # for d in range(0,n): #loop to come up with new path names for each chunk that needs to be sent
@@ -284,12 +287,13 @@ class Memory(LoggingMixIn, Operations):
 
     def retreiveDataFromServer(self, path):
         print 'i am inside retrieve'
-    	node_id = self.getRandomNode(path)
-    	rv=server.get(node_id, Binary("data"))
+        node_id = self.getRandomNode(path)
+        rv=server.get(node_id, Binary("data"))
         if not rv:
             print 'rv was zero so there was no file', rv
             #initilize dictionary 
             self.data = defaultdict(str)
+            print 'self.data=', self.data
             pd=pickle.dumps(self.data)
             server.put(node_id, Binary("data"), Binary(pd), 3000) #no need for special put because default dic will never be over 1k
             #end init
@@ -303,6 +307,8 @@ class Memory(LoggingMixIn, Operations):
             #endGet
             print 'data from empty dictionary=', myData #Data is empty here
             print 'finished retrieve Data when there was no dictionary'
+            print 'myData1=', myData
+            print type(myData)
             return myData
         else: #a return value was present so we need to actually retreive some data (in this case there is no initilization required)    
             fileSize=self.getSizeofFile(path)
@@ -312,12 +318,12 @@ class Memory(LoggingMixIn, Operations):
             print 'numBlocksToTransfer=', n 
             if n == 1: #if there is only 1 block to transfer
             #get
-            #get
-                rv=server.get(node_id, Binary("data")) #now bring back the dictionary we just sent over
                 data_str = rv["value"].data
                 myData = pickle.loads(data_str) #unpickle
             #endGet
                 print 'finished retreive data when a dictionary was present'
+                print 'myData2=', myData
+                print type(myData)
                 return myData
             
             else:
@@ -384,7 +390,7 @@ class Memory(LoggingMixIn, Operations):
         myFiles = pickle.loads(data_str)
         #endGet        
         myFiles[path]['st_size'] = length
-    	#set
+        #set
         p=pickle.dumps(myFiles)
         server.put('1', Binary("files"), Binary(p), 3000)
         #endSet
@@ -429,8 +435,6 @@ class Memory(LoggingMixIn, Operations):
         print type(Data)
         if not Data: #data is empty if the dictionary brought back was just the initializer in other words if this is a new file path
             print 'Data was empty'
-            print 'the Data= ', Data
-            print type(Data)
             Data[path] = Data[path][:offset] + data
             print 'data=', data
             print 'Data=', Data
@@ -443,13 +447,12 @@ class Memory(LoggingMixIn, Operations):
             #endGet 
             
             myFiles[path]['st_size'] = len(Data[path]) #update size of file
-            a=myFiles[path]['st_size']
+            a=myFiles[path]['st_size']#fileSize
             print 'a=', a
             print 'i finished if data was empty'
         
         else:  #data was present  
-            print 'the Data= ', Data
-            print type(Data)
+           
             Data[path] = Data[path][:offset] + data #concatinate data
             print 'Data[path]=', Data[path]
                     
@@ -460,11 +463,11 @@ class Memory(LoggingMixIn, Operations):
             #endGet 
             
             myFiles[path]['st_size'] = len(Data[path]) #update size of file
-            a=myFiles[path]['st_size']
+            a=myFiles[path]['st_size']#fileSize
             
         #set
-        p=pickle.dumps(Data) #pickle new data
-        self.sendDataToServer(path, Binary("data"), Binary(p), 3000) #send back special this may be over 1k
+        pickledData=pickle.dumps(Data) #pickle new data
+        self.sendDataToServer(path, pickledData, a) #send back special this may be over 1k
         #endSet
             
         #set
